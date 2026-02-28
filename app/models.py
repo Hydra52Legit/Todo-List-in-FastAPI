@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text, Integer
 from sqlalchemy.orm import relationship
-from database import Base
+from .database import Base
 import datetime
 
 class User(Base):
@@ -19,9 +19,10 @@ class Project(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False);
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     owner = relationship("User", back_populates="projects")
+    tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
 
 class Task(Base):
-    __tablename__ = "Tasks"
+    __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -32,4 +33,4 @@ class Task(Base):
     notes = Column(Text, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    project = relationship("Project", back_populates="task")
+    project = relationship("Project", back_populates="tasks")

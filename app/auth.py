@@ -4,9 +4,9 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-import models
-from database import SessionLocal
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from . import models
+from .database import SessionLocal
+from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -15,6 +15,14 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
+    
+    if isinstance(password, str):
+        pw_bytes = password.encode("utf-8")
+    else:
+        pw_bytes = password
+    if len(pw_bytes) > 72:
+        
+        raise ValueError("password cannot be longer than 72 bytes")
     return pwd_context.hash(password)
 
 def create_access_token(data: dict):
