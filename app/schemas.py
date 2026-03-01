@@ -11,7 +11,9 @@ class TaskBase(BaseModel):
     end_time: Optional[datetime] = None
     notes: Optional[str] = None
 
-class TaskCreate(TaskBase):
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
     project_id: int 
 
 class TaskUpdate(BaseModel):
@@ -29,7 +31,7 @@ class Task(TaskBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ProjectBase(BaseModel):
     name: str
@@ -45,10 +47,7 @@ class Project(ProjectBase):
     tasks: List[Task] = []
 
     class Config:
-        orm_mode = True
-
-class UserBase(BaseModel):
-    username: str
+        from_attributes = True
 
 class UserBase(BaseModel):
     username: str
@@ -62,7 +61,7 @@ class User(UserBase):
     projects: List[Project] = []
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str

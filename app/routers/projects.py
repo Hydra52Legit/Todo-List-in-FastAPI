@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from .. import models, schemas
 from ..auth import get_db, get_current_user
 
@@ -11,11 +12,17 @@ def get_projects(db: Session = Depends(get_db), current_user: models.User = Depe
 
 @router.post("/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    db_project = models.Project(**project.dict(), user_id=current_user.id)
-    db.add(db_project)
-    db.commit()
-    db.refresh(db_project)
-    return db_project
+    try:
+        db_project = models.Project(**project.dict(), user_id=current_user.id)
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except OperationalError:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error")
 
 @router.get("/{project_id}", response_model=schemas.Project)
 def get_project(project_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from .. import models, schemas
 from ..auth import get_db, get_current_user
 from typing import Optional
@@ -31,18 +32,24 @@ def get_tasks(
 
 @router.post("/", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    project = db.query(models.Project).filter(
-        models.Project.id == task.project_id,
-        models.Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    db_task = models.Task(**task.dict())
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    return db_task
+    try:
+        project = db.query(models.Project).filter(
+            models.Project.id == task.project_id,
+            models.Project.user_id == current_user.id
+        ).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        db_task = models.Task(**task.dict())
+        db.add(db_task)
+        db.commit()
+        db.refresh(db_task)
+        return db_task
+    except OperationalError:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error")
 
 @router.get("/{task_id}", response_model=schemas.Task)
 def get_task(task_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

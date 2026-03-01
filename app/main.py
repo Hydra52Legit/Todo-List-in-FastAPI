@@ -1,32 +1,31 @@
+import logging
+import time
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from .database import engine
 from . import models
 from .routers import users, projects, tasks
 
-app = FastAPI(
-    title = "Todo API test",
-    description="Multiuser Todo List with Projects",
-    version="1.0.0"
-)
-
-
-@app.on_event("startup")
-def on_startup():
-
-    import logging, time
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     for attempt in range(5):
         try:
             models.Base.metadata.create_all(bind=engine)
             break
         except Exception as e:
-            
             if attempt == 4:
-                logging.error(
-                    "Failed to create database tables after retries: %s", e
-                )
+                logging.error("Failed to create database tables: %s", e)
             else:
-                logging.warning("Could not create database tables (attempt %d): %s", attempt + 1, e)
+                logging.warning("Attempt %d failed, retrying...", attempt + 1)
                 time.sleep(2)
+    yield
+
+app = FastAPI(
+    title="Todo API test",
+    description="Multiuser Todo List with Projects",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 app.include_router(users.router)
 app.include_router(projects.router)

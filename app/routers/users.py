@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from .. import models, schemas, auth
@@ -36,12 +37,23 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 @router.post("/login", response_model=schemas.Token)
-def login(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.username == user.username).first()
-    if not db_user or not auth.verify_password(user.password, db_user.hashed_password):
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db)
+):
+    try:
+        db_user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    except OperationalError:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    except SQLAlchemyError:
+        raise HTTPException(status_code=500, detail="Database error")
+    
+    if not db_user or not auth.verify_password(form_data.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = auth.create_access_token(data={"sub": user.username})
+    
+    token = auth.create_access_token(data={"sub": db_user.username})
     return {"access_token": token, "token_type": "bearer"}
+
 
 @router.get("/me", response_model=schemas.User)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
