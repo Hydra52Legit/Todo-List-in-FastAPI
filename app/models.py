@@ -1,7 +1,25 @@
-from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text, Integer
+from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text, Integer, Table
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
+
+task_tags = Table(
+    'task_tags',
+    Base.metadata,
+    Column('task_id', Integer, ForeignKey('tasks.id', ondelete="CASCADE"), primary_key=True),
+    Column('tag_id', Integer, ForeignKey('tags.id', ondelete="CASCADE"), primary_key=True)
+)
+
+class Tag(Base):
+    __tablename__ = "tags"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, index=True, nullable=False)
+    color = Column(String(7), default="#808080")  # Hex color code
+    tasks = relationship("Task", secondary=task_tags, back_populates="tags")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    user = relationship("User", back_populates="tags")
+    tasks = relationship("Task", secondary=task_tags, back_populates="tags")
 
 class User(Base):
     __tablename__ = "users"
@@ -10,6 +28,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+
+    tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -34,3 +54,5 @@ class Task(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     project = relationship("Project", back_populates="tasks")
+
+    tags = relationship("Tag", secondary=task_tags, back_populates="tasks")
